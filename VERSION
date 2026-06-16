@@ -1,0 +1,35 @@
+commit 111348d61393374213b10c8a60199a869be734b7
+Author: Vincent Fretin <vincent.fretin@gmail.com>
+Date:   Tue Jun 16 22:25:51 2026 +0200
+
+    fix: emit finished event for one time animation (#5179)
+    
+    * fix: emit finished event for one-time animations
+    
+    Two separate bugs prevented the 'finished' event from being dispatched
+    when an animation was played a single time (repetitions: 1):
+    
+    1. Mixer event subscriptions were lost on model load (regression from
+       4.3.0). The multi-model refactor recreates the animation mixers on
+       every setSource(), but the mixer event subscriptions are registered
+       only once, when the animation feature is constructed — before any
+       model is loaded, while there are no mixers yet. They were never
+       re-applied to the mixers created later, so 'finished' (and 'loop')
+       were never dispatched. ModelScene now remembers its subscriptions and
+       attaches them to every mixer it creates.
+    
+    2. Setting the animationName property and then calling play() looped
+       forever (present in all versions). Assigning animationName schedules
+       an asynchronous reactive update whose updated() re-triggers playback;
+       it did so with the default options (repetitions: Infinity /
+       LoopRepeat), overwriting a play({repetitions: 1}) issued in the same
+       tick, so the clip looped and never finished. Using the declarative
+       animation-name attribute avoided this only because the property never
+       changed. play() now records its options and the re-trigger reuses them
+       instead of resetting to an infinite loop.
+    
+    Both paths are covered by regression tests in animation-spec.ts.
+    
+    * docs: add "Play Once" animation example
+    
+    Demonstrate playing an animation a single time on demand: set animationName, reset currentTime to 0, call play({repetitions: 1}), and re-enable the control on the 'finished' event. Doubles as a live test of the one-time-animation finished fix.
